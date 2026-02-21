@@ -8,7 +8,7 @@ A professional, fully-featured Windows batch script for Internet Download Manage
 
 ```
 IDM-Activation-Script/
-├── IAS.cmd                  # Main activation script (916 lines)
+├── IAS.cmd                  # Main activation script (915 lines)
 ├── IAS.ps1                  # PowerShell download wrapper
 ├── README.md                # Complete project documentation
 ├── LICENSE                  # MIT License (2025)
@@ -76,7 +76,7 @@ IAS.cmd         # Run with full menu interface
 | Metric | Value |
 |--------|-------|
 | **Total Files** | 8 |
-| **Code Lines (IAS.cmd)** | 916 |
+| **Code Lines (IAS.cmd)** | 915 |
 | **Documentation Files** | 4 |
 | **Supported Windows Versions** | 6 (7/8/8.1/10/11/Server) |
 | **Supported Architectures** | 3 (x86/x64/ARM64) |

@@ -1,3 +1,4 @@
+[CmdletBinding()]
 Param (
     [Parameter(Position=0)]
     [string]$DownloadURL = 'https://raw.githubusercontent.com/omartazul/IDM-Activation-Script/main/IAS.cmd',
@@ -18,7 +19,8 @@ Param (
 $ErrorActionPreference = 'Stop'
 
 function Write-Info { param([string]$msg) Write-Host "[INFO] $msg" }
-function Write-Err { param([string]$msg) Write-Host "[ERROR] $msg" -ForegroundColor Red }
+function Write-Warn { param([string]$msg) Write-Host "[WARN] $msg" -ForegroundColor Yellow }
+function Write-Err  { param([string]$msg) Write-Host "[ERROR] $msg" -ForegroundColor Red }
 
 function Initialize-Environment {
     try {
@@ -75,7 +77,7 @@ function Test-FileValidity {
     try {
         $firstLine = Get-Content -Path $Path -TotalCount 1 -ErrorAction Stop
         if ($firstLine -notmatch "^@(set|echo)") {
-            Write-Host "[WARN] File may not be an IAS batch script" -ForegroundColor Yellow
+            Write-Warn "File may not be an IAS batch script"
         }
     } catch {
         Write-Verbose "Content validation skipped: $_"
@@ -109,7 +111,7 @@ function Repair-LineEndings {
     $content = [System.IO.File]::ReadAllText($Path)
     $content = $content -replace "`r?`n", "`r`n"
     if (-not $content.EndsWith("`r`n")) { $content += "`r`n" }
-    [System.IO.File]::WriteAllText($Path, $content, [System.Text.Encoding]::ASCII)
+    [System.IO.File]::WriteAllText($Path, $content, [System.Text.Encoding]::Default)
 }
 
 function Confirm-FileHash {
@@ -128,6 +130,7 @@ function Invoke-Main {
     
     Initialize-Environment
     $FilePath = Get-SafeTempFilePath
+    $keepFile = $false
     
     try {
         if (-not (Get-RemoteFile -PrimaryUrl $DownloadURL -FallbackUrl $FallbackURL -Destination $FilePath)) {
@@ -140,6 +143,7 @@ function Invoke-Main {
         Test-FileValidity -Path $FilePath
         
         if ($NoRun) {
+            $keepFile = $true
             Write-Info "Dry-run mode: File saved at $FilePath"
             exit 0
         }
@@ -150,7 +154,7 @@ function Invoke-Main {
         Write-Err "Operation failed: $_"
         exit 1
     } finally {
-        Remove-TempFile $FilePath
+        if (-not $keepFile) { Remove-TempFile $FilePath }
     }
 }
 

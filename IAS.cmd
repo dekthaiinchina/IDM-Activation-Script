@@ -632,7 +632,7 @@ set /a fname = %random% %% 9999 + 1000
 set /a lname = %random% %% 9999 + 1000
 set email=%fname%.%lname%@gmail.com
 
-for /f "delims=" %%a in ('%psc% "$key = -join ((Get-Random -Count 20 -InputObject ([char[]]('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'))));$key = ($key.Substring(0, 5) + '-' + $key.Substring(5, 5) + '-' + $key.Substring(10, 5) + '-' + $key.Substring(15, 5) + $key.Substring(20));Write-Output $key" %nul6%') do (set key=%%a)
+for /f "delims=" %%a in ('%psc% "$key = -join ((Get-Random -Count 25 -InputObject ([char[]]('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'))));$key = ($key.Substring(0, 5) + '-' + $key.Substring(5, 5) + '-' + $key.Substring(10, 5) + '-' + $key.Substring(15, 5) + '-' + $key.Substring(20, 5));Write-Output $key" %nul6%') do (set key=%%a)
 
 set "reg=HKCU\SOFTWARE\DownloadManager /v FName /t REG_SZ /d "%fname%"" & call :_rcont
 set "reg=HKCU\SOFTWARE\DownloadManager /v LName /t REG_SZ /d "%lname%"" & call :_rcont
