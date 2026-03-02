@@ -482,7 +482,7 @@ set "reg=%reg:"=%"
 echo Deleted - !reg!
 ) else (
 set "reg=%reg:"=%"
-call :_color2 %Red% "Failed - !reg!"
+call :_color %Red% "Failed - !reg!"
 )
 
 exit /b
@@ -618,7 +618,7 @@ exit /b
 
 :_rcont
 
-reg add %reg% %nul%
+reg add %reg% /f %nul%
 call :add
 exit /b
 
@@ -702,7 +702,7 @@ set "reg=%reg:"=%"
 echo Added - !reg!
 ) else (
 set "reg=%reg:"=%"
-call :_color2 %Red% "Failed - !reg!"
+call :_color %Red% "Failed - !reg!"
 )
 exit /b
 

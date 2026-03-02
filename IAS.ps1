@@ -87,20 +87,35 @@ function Test-FileValidity {
 function Invoke-DownloadedScript {
     param([string]$Path, [string[]]$Arguments)
     
+    $isAdmin = ([System.Security.Principal.WindowsPrincipal] [System.Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+    
     Write-Info "Starting process: $Path"
-    if ($Arguments) {
-        Start-Process -FilePath $Path -ArgumentList $Arguments -Wait -NoNewWindow
-    } else {
-        Start-Process -FilePath $Path -Wait -NoNewWindow
+    $processParams = @{
+        FilePath = $Path
+        Wait     = $true
     }
+    if ($Arguments) {
+        $processParams['ArgumentList'] = $Arguments
+    }
+    if ($isAdmin) {
+        $processParams['NoNewWindow'] = $true
+    } else {
+        $processParams['Verb'] = 'RunAs'
+    }
+    Start-Process @processParams
 }
 
 function Remove-TempFile {
     param([string]$Path)
     
     if (Test-Path -LiteralPath $Path) {
+        Start-Sleep -Seconds 2
         Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
-        Write-Info "Cleaned up $Path"
+        if (-not (Test-Path -LiteralPath $Path)) {
+            Write-Info "Cleaned up $Path"
+        } else {
+            Write-Warn "Could not remove $Path (may still be in use). File is in temp directory and will be cleaned up later."
+        }
     }
 }
 
@@ -126,7 +141,7 @@ function Confirm-FileHash {
 }
 
 function Invoke-Main {
-    if (-not $DownloadURL) { Write-Err "Download URL required"; exit 1 }
+    if (-not $DownloadURL) { Write-Err "Download URL required"; return }
     
     Initialize-Environment
     $FilePath = Get-SafeTempFilePath
@@ -135,28 +150,26 @@ function Invoke-Main {
     try {
         if (-not (Get-RemoteFile -PrimaryUrl $DownloadURL -FallbackUrl $FallbackURL -Destination $FilePath)) {
             Write-Err "Download failed from all URLs"
-            exit 1
+            return
         }
         
-        Repair-LineEndings -Path $FilePath
         Confirm-FileHash -Path $FilePath -Hash $ExpectedHash -Skip:$SkipHashCheck
+        Repair-LineEndings -Path $FilePath
         Test-FileValidity -Path $FilePath
         
         if ($NoRun) {
             $keepFile = $true
             Write-Info "Dry-run mode: File saved at $FilePath"
-            exit 0
+            return
         }
         
         Invoke-DownloadedScript -Path $FilePath -Arguments $ScriptArgs
         
     } catch {
         Write-Err "Operation failed: $_"
-        exit 1
     } finally {
         if (-not $keepFile) { Remove-TempFile $FilePath }
     }
 }
 
 Invoke-Main
-exit 0
