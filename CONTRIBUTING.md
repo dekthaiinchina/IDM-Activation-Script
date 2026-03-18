@@ -1,223 +1,101 @@
-# Contributing to IDM Activation Script
+﻿# Contributing to IDM Activation Script
 
-Thank you for your interest in contributing to this project! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing. This guide explains how to propose changes, submit code, and keep contributions consistent with project standards.
 
-## Table of Contents
+## Code of conduct
 
-- [Code of Conduct](#code-of-conduct)
-- [How Can I Contribute?](#how-can-i-contribute)
-- [Development Setup](#development-setup)
-- [Coding Standards](#coding-standards)
-- [Pull Request Process](#pull-request-process)
-- [Reporting Bugs](#reporting-bugs)
-- [Suggesting Enhancements](#suggesting-enhancements)
+- Be respectful and constructive.
+- Keep discussions focused on the technical issue.
+- Accept feedback professionally.
 
-## Code of Conduct
+## How to contribute
 
-This project follows a simple code of conduct:
+### Report bugs
 
-- Be respectful and constructive
-- Focus on what is best for the community
-- Show empathy towards other community members
-- Accept constructive criticism gracefully
+Before opening a new issue, check existing issues to avoid duplicates.
 
-## How Can I Contribute?
+Include the following information:
 
-### Reporting Bugs
-
-Before creating bug reports, please check existing issues to avoid duplicates. When creating a bug report, include:
-
-- **Clear title** describing the issue
-- **Detailed description** of the problem
-- **Steps to reproduce** the behavior
-- **Expected behavior** vs actual behavior
-- **Environment details**:
-  - Windows version and build number
+- Clear summary of the problem
+- Steps to reproduce
+- Expected behavior and actual behavior
+- Environment details:
+  - Windows version and build
   - IDM version
-  - System architecture (x86/x64/ARM64)
+  - Architecture (x86, x64, ARM64)
   - PowerShell version
 
-**Example Bug Report:**
+### Suggest enhancements
 
-```markdown
-## Bug: Script fails on Windows 11 ARM64
+Provide:
 
-### Description
-The script fails during registry scanning on Windows 11 ARM64 devices.
+- Clear feature summary
+- Problem statement and expected outcome
+- Practical use case
+- Optional implementation ideas
 
-### Steps to Reproduce
-1. Run IAS.cmd as administrator on Windows 11 ARM64
-2. Select option [1] Activate IDM
-3. Script crashes during registry scan
+### Submit code changes
 
-### Expected Behavior
-Script should complete activation successfully
+1. Fork the repository.
+2. Clone your fork locally.
+3. Create a branch for your change.
+4. Implement the change with tests where applicable.
+5. Run validation and smoke checks.
+6. Commit with a clear message.
+7. Push your branch.
+8. Open a pull request against main.
 
-### Environment
-- Windows 11 Pro 23H2 (Build 22631.2861)
-- IDM 6.41 Build 2
-- ARM64 architecture
-- PowerShell 7.4.0
-```
-
-### Suggesting Enhancements
-
-Enhancement suggestions are welcome! Please provide:
-
-- **Clear title** summarizing the enhancement
-- **Detailed description** of the feature
-- **Use case** explaining why it's useful
-- **Implementation ideas** if you have any
-
-### Code Contributions
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Make your changes
-4. Test thoroughly on multiple Windows versions
-5. Commit your changes (`git commit -m 'Add AmazingFeature'`)
-6. Push to the branch (`git push origin feature/AmazingFeature`)
-7. Open a Pull Request
-
-## Development Setup
+## Development setup
 
 ### Prerequisites
 
-- Windows 7 or later (testing on Windows 10/11 recommended)
+- Windows 7 or later
 - PowerShell 5.1 or later
-- Git for version control
-- Text editor (VS Code, Notepad++, etc.)
+- Git
+- A code editor
 - IDM installed for testing
 
-### Testing Your Changes
+### Validation checklist
 
-Before submitting, test on:
+- Test on at least one clean environment.
+- Verify behavior on Windows 10 and 11 when possible.
+- Cover no-admin and missing-IDM scenarios.
+- Check unattended flags and interactive mode.
 
-1. **Clean Installation**: Fresh Windows VM
-2. **Multiple Versions**: Windows 10 and 11 if possible
-3. **Different Architectures**: x64 at minimum
-4. **Edge Cases**: 
-   - IDM not installed
-   - No internet connection
-   - Restricted PowerShell execution policy
-   - Non-admin user
+## Coding standards
 
-## Coding Standards
+### Batch script (.cmd)
 
-### Batch Script Style
+- Use descriptive variable names.
+- Keep section blocks organized and readable.
+- Add comments only where behavior is non-obvious.
+- Preserve existing style and command conventions.
 
-```batch
-:: Use clear, descriptive variable names
-set "descriptive_name=value"
+### PowerShell (.ps1)
 
-:: Comment complex sections
-:: This section handles registry backup
-call :backup_function
+- Prefer verb-noun naming.
+- Use explicit error handling where needed.
+- Keep functions focused and testable.
+- Avoid unnecessary side effects.
 
-:: Use consistent indentation (spaces, not tabs)
-if condition (
-    echo Action 1
-    echo Action 2
-)
+## Pull request process
 
-:: Group related operations with section markers
-::========================================================================================================================================
-```
+1. Update documentation for user-facing changes.
+2. Add a changelog entry when appropriate.
+3. Describe what changed and why.
+4. Link related issues.
+5. Complete self-review before requesting review.
 
-### PowerShell Style
+## Versioning
 
-```powershell
-# Use meaningful variable names
-$registryPath = "HKCU:\Software"
+This project follows Semantic Versioning:
 
-# Add error handling
-try {
-    # Operation
-} catch {
-    Write-Host "Error: $_"
-}
+- MAJOR: incompatible changes
+- MINOR: backward-compatible features
+- PATCH: backward-compatible fixes
 
-# Use proper formatting
-foreach ($item in $collection) {
-    # Process item
-}
-```
-
-### General Guidelines
-
-1. **Readability**: Code should be self-documenting
-2. **Comments**: Explain WHY, not WHAT
-3. **Error Handling**: Always handle potential failures
-4. **User Feedback**: Provide clear status messages
-5. **No Hardcoding**: Use variables for paths and values
-6. **Consistency**: Follow existing patterns in the codebase
-
-## Pull Request Process
-
-1. **Update Documentation**: Modify README.md if you add features
-2. **Update Changelog**: Add entry to CHANGELOG.md
-3. **Test Thoroughly**: Ensure all functionality works
-4. **Clear Description**: Explain what and why
-5. **Link Issues**: Reference related issues if applicable
-6. **Small PRs**: Keep changes focused and manageable
-
-### PR Template
-
-```markdown
-## Description
-Brief description of changes
-
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Documentation update
-- [ ] Code refactoring
-
-## Testing
-Describe testing performed:
-- OS versions tested
-- Scenarios covered
-- Edge cases verified
-
-## Checklist
-- [ ] Code follows project style
-- [ ] Self-reviewed code
-- [ ] Comments added for complex sections
-- [ ] Documentation updated
-- [ ] Tested on multiple Windows versions
-- [ ] No breaking changes (or documented)
-```
-
-## Version Numbering
-
-This project uses [Semantic Versioning](https://semver.org/):
-
-- **MAJOR**: Incompatible API changes
-- **MINOR**: New backwards-compatible functionality
-- **PATCH**: Backwards-compatible bug fixes
-
-Update version in:
-- `IAS.cmd` (line 1: `@set iasver=X.Y.Z`)
-- `README.md` (Version History section)
-- `CHANGELOG.md` (new entry)
-
-## Recognition
-
-Contributors will be recognized in:
-- GitHub contributors page
-- Future README acknowledgments section
-
-## Questions?
-
-Feel free to:
-- Open an issue for discussion
-- Reach out via GitHub
-- Check existing issues and PRs
+When releasing, keep version references aligned across IAS.cmd, README.md, and CHANGELOG.md.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
-
----
-
-Thank you for contributing to make this project better! 🚀
+By contributing, you agree your contributions are licensed under the MIT License.

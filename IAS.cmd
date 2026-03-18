@@ -98,19 +98,15 @@ cls
 color 07
 title  IDM Activation Script %iasver%
 
-set _args=
+set _args=%*
 set _elev=
 set _unattended=0
 
-set _args=%*
-if defined _args set _args=%_args:"=%
-if defined _args (
-for %%A in (%_args%) do (
-if /i "%%A"=="-el"  set _elev=1
-if /i "%%A"=="/res" set _reset=1
-if /i "%%A"=="/frz" set _freeze=1
-if /i "%%A"=="/act" set _activate=1
-)
+for %%A in (%*) do (
+if /i "%%~A"=="-el"  set _elev=1
+if /i "%%~A"=="/res" set _reset=1
+if /i "%%~A"=="/frz" set _freeze=1
+if /i "%%~A"=="/act" set _activate=1
 )
 
 for %%A in (%_activate% %_freeze% %_reset%) do (if "%%A"=="1" set _unattended=1)
@@ -206,7 +202,7 @@ goto done2
 
 REM :PowerShellTest: $ExecutionContext.SessionState.LanguageMode :PowerShellTest:
 
-%psc% "$f=[io.file]::ReadAllText('!_batp!') -split ':PowerShellTest:\s*';iex ($f[1])" | find /i "FullLanguage" %nul1% || (
+%psc% "$f=[io.file]::ReadAllText('!_batp!') -split ':PowerShellTest:\s*'; . ([scriptblock]::create($f[1]))" | find /i "FullLanguage" %nul1% || (
 %eline%
 %psc% $ExecutionContext.SessionState.LanguageMode
 echo:
@@ -403,27 +399,15 @@ goto :MainMenu
 :_reset
 
 cls
-if not %HKCUsync%==1 (
-if not defined terminal mode 153, 35
-) else (
-if not defined terminal mode 113, 35
-)
-if not defined terminal %psc% "&%_buf%" %nul%
+call :prepare_operation_ui
 
 echo:
 %idmcheck% && taskkill /f /im idman.exe
 
-set _time=
-for /f %%a in ('%psc% "(Get-Date).ToString('yyyyMMdd-HHmmssfff')"') do set _time=%%a
-
-echo:
-echo Creating backup of CLSID registry keys in %SystemRoot%\Temp
-
-reg export %CLSID% "%SystemRoot%\Temp\_Backup_HKCU_CLSID_%_time%.reg"
-if not %HKCUsync%==1 reg export %CLSID2% "%SystemRoot%\Temp\_Backup_HKU-%_sid%_CLSID_%_time%.reg"
+call :create_clsid_backup
 
 call :delete_queue
-%psc% "$sid = '%_sid%'; $HKCUsync = %HKCUsync%; $lockKey = $null; $deleteKey = 1; $f=[io.file]::ReadAllText('!_batp!') -split ':regscan\:.*';iex ($f[1])"
+call :regscan_delete
 
 call :add_key
 
@@ -492,12 +476,7 @@ exit /b
 :_activate
 
 cls
-if not %HKCUsync%==1 (
-if not defined terminal mode 153, 35
-) else (
-if not defined terminal mode 113, 35
-)
-if not defined terminal %psc% "&%_buf%" %nul%
+call :prepare_operation_ui
 
 if %frz%==0 if %_unattended%==0 (
 echo:
@@ -520,20 +499,6 @@ echo You can download it from: https://www.internetdownloadmanager.com/download.
 goto done
 )
 
-:: Internet check with internetdownloadmanager.com ping and port 80 test
-
-set _int=
-for /f "delims=[] tokens=2" %%# in ('ping -n 1 internetdownloadmanager.com') do (if not [%%#]==[] set _int=1)
-
-if not defined _int (
-%psc% "$t = New-Object Net.Sockets.TcpClient;try{$t.Connect("""internetdownloadmanager.com""", 80)}catch{};$t.Connected" | findstr /i "true" %nul1% || (
-call :_color %Red% "Unable to connect to internetdownloadmanager.com. Aborting..."
-goto done
-)
-call :_color %Gray% "Ping command failed for internetdownloadmanager.com"
-echo:
-)
-
 for /f "skip=2 tokens=2*" %%a in ('reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v ProductName 2^>nul') do set "regwinos=%%b"
 for /f "skip=2 tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v PROCESSOR_ARCHITECTURE') do set "regarch=%%b"
 for /f "tokens=6-7 delims=[]. " %%i in ('ver') do if "%%j"=="" (set fullbuild=%%i) else (set fullbuild=%%i.%%j)
@@ -543,32 +508,36 @@ echo Checking System Info - [%regwinos% ^| Build %fullbuild% ^| %regarch% ^| IDM
 
 %idmcheck% && (echo: & taskkill /f /im idman.exe)
 
-set _time=
-for /f %%a in ('%psc% "(Get-Date).ToString('yyyyMMdd-HHmmssfff')"') do set _time=%%a
-
-echo:
-echo Creating backup of CLSID registry keys in %SystemRoot%\Temp
-
-reg export %CLSID% "%SystemRoot%\Temp\_Backup_HKCU_CLSID_%_time%.reg"
-if not %HKCUsync%==1 reg export %CLSID2% "%SystemRoot%\Temp\_Backup_HKU-%_sid%_CLSID_%_time%.reg"
+call :create_clsid_backup
 
 call :delete_queue
 call :add_key
 
-%psc% "$sid = '%_sid%'; $HKCUsync = %HKCUsync%; $lockKey = 1; $deleteKey = $null; $toggle = 1; $f=[io.file]::ReadAllText('!_batp!') -split ':regscan\:.*';iex ($f[1])"
+:: Block IDM validation servers in hosts file so IDM cannot phone home
+call :block_idm_hosts
 
+:: Step 1: DELETE all existing IDM CLSID keys (including stale locked ones from prior runs)
+:: Stale locked keys block IDM from operating and prevent new key creation
+call :regscan_delete
+
+:: Step 2: Write serial so IDM validates it and creates fresh CLSID keys on next launch
 if %frz%==0 call :register_IDM
 
+:: Step 3: Trigger download - IDM launches with serial, creates fresh CLSID validation keys
 call :download_files
 if not defined _fileexist (
 %eline%
-echo Error: Unable to download test files with IDM.
+echo Error: IDM did not complete the download trigger.
 echo:
 echo For help, visit: %repo%
 goto :done
 )
 
-%psc% "$sid = '%_sid%'; $HKCUsync = %HKCUsync%; $lockKey = 1; $deleteKey = $null; $f=[io.file]::ReadAllText('!_batp!') -split ':regscan\:.*';iex ($f[1])"
+:: Step 4: Lock the fresh CLSID keys before IDM can use them to invalidate the serial
+call :regscan_lock_toggle
+
+:: Step 5: Final lock pass
+call :regscan_lock
 
 echo:
 echo %line%
@@ -647,41 +616,141 @@ set "reg=HKU\%_sid%\SOFTWARE\DownloadManager /v Serial /t REG_SZ /d "%key%"" & c
 )
 exit /b
 
+:block_idm_hosts
+
+echo:
+echo Blocking IDM validation servers in hosts file...
+echo:
+
+set "hosts=%SystemRoot%\System32\drivers\etc\hosts"
+
+:: Remove any previously commented-out entries first, then re-add cleanly
+%psc% "(Get-Content '%hosts%') -replace '^#0\.0\.0\.0 (www\.internetdownloadmanager\.com|secure\.internetdownloadmanager\.com).*','' | Where-Object {$_ -ne ''} | Set-Content '%hosts%'" %nul%
+
+for %%D in (
+"tonec.com"
+"www.tonec.com"
+"internetdownloadmanager.com"
+"www.internetdownloadmanager.com"
+"secure.internetdownloadmanager.com"
+"idmmzs.com"
+"www.idmmzs.com"
+"idmzs.com"
+"www.idmzs.com"
+) do (
+findstr /i /x "0.0.0.0 %%~D" "%hosts%" %nul1% || (
+echo 0.0.0.0 %%~D>>"%hosts%"
+echo Blocked - %%~D
+)
+)
+
+%psc% "Clear-DnsClientCache" %nul%
+exit /b
+
 :download_files
 
 echo:
-echo Triggering test downloads to initialize registry keys...
+echo Triggering download to initialize IDM CLSID registry keys...
 echo:
 
-set "file=%SystemRoot%\Temp\temp.png"
+set "file=%SystemRoot%\Temp\ias_temp.png"
 set _fileexist=
+if exist "%file%" del /f /q "%file%"
+
+:: Get baseline CLSID key count before IDM runs
+if "%arch%"=="x86" (set "_clsid_reg=HKCU\Software\Classes\CLSID") else (set "_clsid_reg=HKCU\Software\Classes\Wow6432Node\CLSID")
+set /a _base_count=0
+for /f %%C in ('reg query "%_clsid_reg%" 2^>nul ^| find /c "HKEY_"') do set /a _base_count=%%C
+echo Baseline CLSID key count: %_base_count%
+
+:: Try multiple reliable small files - first success wins
+set link=https://raw.githubusercontent.com/omartazul/IDM-Activation-Script/main/LICENSE
+call :download
+if defined _fileexist goto :dl_done
+
+set link=https://www.google.com/favicon.ico
+call :download
+if defined _fileexist goto :dl_done
+
+set link=https://github.com/favicon.ico
+call :download
+if defined _fileexist goto :dl_done
 
 set link=https://www.internetdownloadmanager.com/images/idm_box_min.png
 call :download
-set link=https://www.internetdownloadmanager.com/register/IDMlib/images/idman_logos.png
-call :download
-set link=https://www.internetdownloadmanager.com/pictures/idm_about.png
-call :download
+
+:dl_done
 
 echo:
 timeout /t 3 %nul1%
 %idmcheck% && taskkill /f /im idman.exe
 if exist "%file%" del /f /q "%file%"
+
+:: Confirm new CLSID keys were created
+set /a _new_count=0
+for /f %%C in ('reg query "%_clsid_reg%" 2^>nul ^| find /c "HKEY_"') do set /a _new_count=%%C
+echo CLSID key count after IDM run: %_new_count%
+if %_new_count% GTR %_base_count% (
+    echo New CLSID keys created, activation hooks detected.
+    set _fileexist=1
+)
+if not defined _fileexist (
+    if %_new_count% GTR 0 set _fileexist=1
+)
 exit /b
 
 :download
 
 set /a attempt=0
 if exist "%file%" del /f /q "%file%"
-start "" /B "%IDMan%" /n /d "%link%" /p "%SystemRoot%\Temp" /f temp.png
+start "" /B "%IDMan%" /n /d "%link%" /p "%SystemRoot%\Temp" /f ias_temp.png
 
 :check_file
 
 timeout /t 1 %nul1%
 set /a attempt+=1
 if exist "%file%" set _fileexist=1&exit /b
-if %attempt% GEQ 20 exit /b
+if %attempt% GEQ 25 exit /b
 goto :check_file
+
+::========================================================================================================================================
+
+:prepare_operation_ui
+
+if not %HKCUsync%==1 (
+if not defined terminal mode 153, 35
+) else (
+if not defined terminal mode 113, 35
+)
+if not defined terminal %psc% "&%_buf%" %nul%
+exit /b
+
+:create_clsid_backup
+
+set _time=
+for /f %%a in ('%psc% "(Get-Date).ToString('yyyyMMdd-HHmmssfff')"') do set _time=%%a
+
+echo:
+echo Creating backup of CLSID registry keys in %SystemRoot%\Temp
+
+reg export %CLSID% "%SystemRoot%\Temp\_Backup_HKCU_CLSID_%_time%.reg"
+if not %HKCUsync%==1 reg export %CLSID2% "%SystemRoot%\Temp\_Backup_HKU-%_sid%_CLSID_%_time%.reg"
+exit /b
+
+:regscan_delete
+
+%psc% "$sid = '%_sid%'; $HKCUsync = %HKCUsync%; $lockKey = $null; $deleteKey = 1; $f=[io.file]::ReadAllText('!_batp!') -split ':regscan\:.*'; . ([scriptblock]::create($f[1]))"
+exit /b
+
+:regscan_lock_toggle
+
+%psc% "$sid = '%_sid%'; $HKCUsync = %HKCUsync%; $lockKey = 1; $deleteKey = $null; $toggle = 1; $f=[io.file]::ReadAllText('!_batp!') -split ':regscan\:.*'; . ([scriptblock]::create($f[1]))"
+exit /b
+
+:regscan_lock
+
+%psc% "$sid = '%_sid%'; $HKCUsync = %HKCUsync%; $lockKey = 1; $deleteKey = $null; $f=[io.file]::ReadAllText('!_batp!') -split ':regscan\:.*'; . ([scriptblock]::create($f[1]))"
+exit /b
 
 ::========================================================================================================================================
 

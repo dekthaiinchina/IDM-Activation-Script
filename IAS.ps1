@@ -22,6 +22,12 @@ function Write-Info { param([string]$msg) Write-Host "[INFO] $msg" }
 function Write-Warn { param([string]$msg) Write-Host "[WARN] $msg" -ForegroundColor Yellow }
 function Write-Err  { param([string]$msg) Write-Host "[ERROR] $msg" -ForegroundColor Red }
 
+function Test-IsAdministrator {
+    $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [System.Security.Principal.WindowsPrincipal]::new($identity)
+    $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
 function Initialize-Environment {
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -31,33 +37,47 @@ function Initialize-Environment {
 }
 
 function Get-SafeTempFilePath {
-    $isAdmin = ([System.Security.Principal.WindowsPrincipal] [System.Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
-    $TempDir = if ($isAdmin) { Join-Path $env:SystemRoot 'Temp' } else { $env:TEMP }
-    if (-not (Test-Path $TempDir)) { New-Item $TempDir -ItemType Directory -Force | Out-Null }
-    Join-Path $TempDir ("IAS_{0}.cmd" -f [System.Guid]::NewGuid())
+    $tempDir = if (Test-IsAdministrator) { Join-Path $env:SystemRoot 'Temp' } else { $env:TEMP }
+    if (-not (Test-Path -LiteralPath $tempDir)) {
+        New-Item -Path $tempDir -ItemType Directory -Force | Out-Null
+    }
+
+    Join-Path $tempDir ("IAS_{0}.cmd" -f [System.Guid]::NewGuid())
+}
+
+function Invoke-DownloadAttempt {
+    param(
+        [string]$Url,
+        [string]$Destination
+    )
+
+    try {
+        Write-Info "Downloading: $Url"
+        Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing -ErrorAction Stop
+        $true
+    } catch {
+        Write-Verbose "Download failed from '$Url': $_"
+        $false
+    }
 }
 
 function Get-RemoteFile {
-    param([string]$PrimaryUrl, [string]$FallbackUrl, [string]$Destination)
-    
-    $download = {
-        param($Url)
-        try {
-            Write-Info "Downloading: $Url"
-            Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing -ErrorAction Stop
-            return $true
-        } catch {
-            Write-Verbose "Download failed: $_"
-            return $false
-        }
+    param(
+        [string]$PrimaryUrl,
+        [string]$FallbackUrl,
+        [string]$Destination
+    )
+
+    if (Invoke-DownloadAttempt -Url $PrimaryUrl -Destination $Destination) {
+        return $true
     }
-    
-    $result = & $download $PrimaryUrl
-    if (-not $result -and $FallbackUrl) {
+
+    if (-not [string]::IsNullOrWhiteSpace($FallbackUrl)) {
         Write-Info "Trying fallback URL"
-        $result = & $download $FallbackUrl
+        return (Invoke-DownloadAttempt -Url $FallbackUrl -Destination $Destination)
     }
-    return $result
+
+    $false
 }
 
 function Test-FileIntegrity {
@@ -74,27 +94,23 @@ function Test-FileValidity {
     if (-not (Test-Path -LiteralPath $Path)) { throw "File does not exist" }
     if ((Get-Item -LiteralPath $Path).Length -eq 0) { throw "File is empty" }
     
-    try {
-        $firstLine = Get-Content -Path $Path -TotalCount 1 -ErrorAction Stop
-        if ($firstLine -notmatch "^@(set|echo)") {
-            Write-Warn "File may not be an IAS batch script"
-        }
-    } catch {
-        Write-Verbose "Content validation skipped: $_"
+    $firstLine = Get-Content -Path $Path -TotalCount 1 -ErrorAction Stop
+    if ($firstLine -notmatch "^@(set|echo)") {
+        throw "File may not be an IAS batch script. Invalid preamble."
     }
 }
 
 function Invoke-DownloadedScript {
     param([string]$Path, [string[]]$Arguments)
-    
-    $isAdmin = ([System.Security.Principal.WindowsPrincipal] [System.Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+
+    $isAdmin = Test-IsAdministrator
     
     Write-Info "Starting process: $Path"
     $processParams = @{
         FilePath = $Path
         Wait     = $true
     }
-    if ($Arguments) {
+    if ($Arguments -and $Arguments.Count -gt 0) {
         $processParams['ArgumentList'] = $Arguments
     }
     if ($isAdmin) {
@@ -132,7 +148,11 @@ function Repair-LineEndings {
 function Confirm-FileHash {
     param([string]$Path, [string]$Hash, [switch]$Skip)
     
-    if (-not $Hash -or $Skip) { return }
+    if (-not $Hash -and -not $Skip) {
+        Write-Warn "No expected hash provided. This is insecure. Provide -ExpectedHash or use -SkipHashCheck to bypass."
+    }
+    
+    if ([string]::IsNullOrWhiteSpace($Hash) -or $Skip) { return }
     
     if (-not (Test-FileIntegrity -Path $Path -ExpectedHash $Hash)) {
         throw "Hash verification failed"
@@ -141,7 +161,10 @@ function Confirm-FileHash {
 }
 
 function Invoke-Main {
-    if (-not $DownloadURL) { Write-Err "Download URL required"; return }
+    if ([string]::IsNullOrWhiteSpace($DownloadURL)) {
+        Write-Err "Download URL required"
+        return
+    }
     
     Initialize-Environment
     $FilePath = Get-SafeTempFilePath

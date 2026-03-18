@@ -1,160 +1,112 @@
-# IDM Activation Script
+﻿# IDM Activation Script
 
-A powerful Windows batch script for activating Internet Download Manager (IDM) with multiple activation methods.
+Lightweight Windows tooling for IDM state management via batch and PowerShell.
 
 ## Features
 
-- **Multiple Activation Methods**
-  - Full IDM Activation
-  - Trial Period Freeze
-  - Reset Activation/Trial
-
-- **Advanced Capabilities**
-  - Automatic registry backup before modifications
-  - Smart CLSID registry key detection and management
-  - Support for x86, x64, and ARM64 architectures
-  - Unattended mode support via command-line parameters
-  - Compatibility with Windows 7/8/8.1/10/11 and Server editions
+- Interactive menu for common operations
+- Command-line support for unattended use
+- Automatic registry backup before changes
+- Compatibility checks for environment, permissions, and required tools
+- Support for x86, x64, and ARM64 Windows environments
 
 ## Requirements
 
 - Windows 7 or later (including Windows Server)
 - Administrator privileges
-- PowerShell (pre-installed on modern Windows)
+- Windows PowerShell 5.1 or later
 - Internet Download Manager installed
 
 ## Usage
 
-### Method 1: PowerShell (Recommended)
+### Method 1: PowerShell bootstrap
 
-Download and run directly from GitHub:
+Run in Windows PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/omartazul/IDM-Activation-Script/main/IAS.ps1 | iex
 ```
 
-This method:
-- Downloads the latest version automatically
-- Runs in a single command
-- No manual file management needed
+### Method 2: Interactive mode
 
-### Method 2: Interactive Mode
+1. Download IAS.cmd from the Releases page.
+2. Run IAS.cmd as Administrator.
+3. Select an option from the menu.
 
-1. Download `IAS.cmd` from [Releases](https://github.com/omartazul/IDM-Activation-Script/releases)
-2. Right-click on `IAS.cmd` and select **"Run as administrator"**
-3. Choose from the menu:
-   - `[1]` Activate IDM
-   - `[2]` Freeze Trial Period (Recommended)
-   - `[3]` Reset Activation/Trial
-   - `[4]` Download IDM
-   - `[5]` Help
-   - `[0]` Exit
+### Method 3: Command-line mode
 
-### Method 3: Command Line Mode
-
-```batch
-# Activate IDM
+```cmd
 IAS.cmd /act
-
-# Freeze trial period
 IAS.cmd /frz
-
-# Reset activation
 IAS.cmd /res
 ```
 
-## How It Works
+## Operational flow
 
-1. **Registry Backup**: Creates automatic backups in `%SystemRoot%\Temp`
-2. **Registry Scan**: Intelligently detects and processes IDM-related registry keys
-3. **Activation**: Applies registration details or freezes trial period
-4. **Verification**: Tests download functionality to ensure proper activation
-
-## Recommendations
-
-- **Freeze Trial** is recommended over activation for best long-term results
-- Always run with administrator privileges
-- Ensure IDM is installed before running the script
-- Internet connection required for initial setup
+1. Validate execution environment and privileges.
+2. Detect IDM and related registry locations.
+3. Create backup files in %SystemRoot%\Temp.
+4. Execute the selected operation.
+5. Return status and guidance in the console.
 
 ## Troubleshooting
 
-### Common Issues
+### Script requires admin privileges
 
-**Script requires admin privileges**
-- Right-click and select "Run as administrator"
+- Run the script with elevated rights.
 
-**PowerShell is not working**
-- Check if PowerShell execution policies are restricted
-- Run: `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Bypass`
+### PowerShell is not working
 
-**WMI is not working**
-- Restart Windows Management Instrumentation service
-- Run: `net start winmgmt`
+- Check policy restrictions.
+- Example:
 
-**Cannot connect to internetdownloadmanager.com**
-- Check your internet connection
-- Verify firewall/antivirus settings
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Bypass
+```
 
-## Security
+### WMI is not working
 
-- Script creates registry backups before any modifications
-- All operations are performed locally
-- No data is sent to external servers (except IDM's own servers for testing)
+- Restart the service:
+
+```cmd
+net start winmgmt
+```
+
+## Security and privacy
+
+- Operations are local to the machine.
+- Registry backups are created before modification.
+- Source is visible and reviewable.
 
 ## Compatibility
 
-| Windows Version | Support |
-|----------------|---------|
-| Windows 11     | ✅ Full |
-| Windows 10     | ✅ Full |
-| Windows 8.1    | ✅ Full |
-| Windows 8      | ✅ Full |
-| Windows 7      | ✅ Full |
-| Windows Server | ✅ Full |
+| Windows Version | Status |
+|-----------------|--------|
+| Windows 11      | Supported |
+| Windows 10      | Supported |
+| Windows 8.1 / 8 | Supported |
+| Windows 7       | Supported |
+| Windows Server  | Supported |
 
-| Architecture | Support |
-|-------------|---------|
-| x64         | ✅ Full |
-| x86         | ✅ Full |
-| ARM64       | ✅ Full |
-
-## Download IDM
-
-Official IDM Download: [internetdownloadmanager.com](https://www.internetdownloadmanager.com/download.html)
-
-## Version History
-
-### v3.0 (2025-12-04)
-- Initial release
-- Full activation support
-- Trial freeze functionality
-- Registry backup system
-- Multi-architecture support
+| Architecture | Status |
+|--------------|--------|
+| x64          | Supported |
+| x86          | Supported |
+| ARM64        | Supported |
 
 ## License
 
-This project is released under the MIT License.
+This project is licensed under the MIT License. See LICENSE for details.
 
 ## Disclaimer
 
-This script is for educational purposes only. Users should purchase a legitimate license from the official IDM website to support the developers.
+Use this repository responsibly and in compliance with applicable laws, software terms, and licensing requirements.
 
 ## Author
 
-**Tazul Islam**
+Md. Omar Faruk Tazul Islam
 - GitHub: [@omartazul](https://github.com/omartazul)
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Support
-
-For issues and questions:
-- Open an issue on [GitHub](https://github.com/omartazul/IDM-Activation-Script/issues)
-- Check existing issues for solutions
-
----
-
-⭐ If this project helped you, please consider giving it a star on GitHub!
+Contributions are welcome. See CONTRIBUTING.md for contribution guidelines.
