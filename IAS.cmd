@@ -2,19 +2,16 @@
 @setlocal DisableDelayedExpansion
 @echo off
 
-
-
 ::============================================================================
 ::
 ::   IDM Activation Script (IAS)
 ::
-::   Homepage: https://github.com/omartazul/IDM-Activation-Script
+::   Homepages: https://github.com/WindowsAddict/IDM-Activation-Script
+::              https://massgrave.dev/idm-activation-script
 ::
-::       Author: omartazul
+::       Email: windowsaddict@protonmail.com
 ::
 ::============================================================================
-
-
 
 ::  To activate, run the script with "/act" parameter or change 0 to 1 in below line
 set _activate=0
@@ -368,8 +365,8 @@ echo:
 call :_color2 %_White% "             " %_Green% "IDM Activation Script v%iasver%"
 echo:            ___________________________________________________ 
 echo:
-echo:               GitHub: github.com/omartazul
-echo:               Author: Tazul Islam
+echo:               GitHub: github.com/WindowsAddict/IDM-Activation-Script
+echo:               Author: WindowsAddict
 echo:            ___________________________________________________ 
 echo:                                                               
 echo:               [1] Activate IDM
