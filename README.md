@@ -7,6 +7,7 @@ Lightweight Windows tooling for IDM state management via batch and PowerShell.
 - Interactive menu for common operations
 - Command-line support for unattended use
 - Automatic registry backup before changes
+- Deterministic hosts normalization with duplicate-safe IDM domain blocking
 - Compatibility checks for environment, permissions, and required tools
 - Support for x86, x64, and ARM64 Windows environments
 
@@ -45,7 +46,7 @@ IAS.cmd /res
 
 1. Validate execution environment and privileges.
 2. Detect IDM and related registry locations.
-3. Create backup files in %SystemRoot%\Temp.
+3. Create backup files in %TEMP% (with fallback to %SystemRoot%\Temp).
 4. Execute the selected operation.
 5. Return status and guidance in the console.
 
@@ -71,6 +72,11 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Bypass
 ```cmd
 net start winmgmt
 ```
+
+### Hosts entries look inconsistent
+
+- Run the script once with administrator privileges to re-normalize IDM domains.
+- The script now rewrites managed IDM hosts entries idempotently on each run.
 
 ## Security and privacy
 

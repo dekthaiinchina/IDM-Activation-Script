@@ -7,10 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-03-31
+
 ### Changed
-- Rewrote project documentation for consistency, clarity, and professional tone.
-- Removed broken character encoding artifacts across markdown files.
-- Standardized terminology and section structure in core documentation.
+- Hardened temporary-path handling to use `%TEMP%` first with safe fallback behavior.
+- Improved hosts-file write reliability across repeated runs.
+
+### Fixed
+- Fixed privilege setup in the registry permission routine to avoid intermittent lock failures.
+- Fixed edge cases where protected or missing registry keys could terminate the scan flow.
+- Fixed IDM hosts block behavior to normalize managed domains idempotently and prevent duplicate entries.
+
+## [3.1.0] - 2026-03-18
+
+### Changed
+- Modernized codebase and overhauled documentation.
+- Refactored IAS.cmd into modular functions and improved execution reliability.
+- Enhanced IAS.ps1 with better error handling and administrator checks.
+- Implemented IDM host blocking and more robust registry key detection logic.
 
 ## [3.0.0] - 2025-12-04
 
@@ -71,4 +85,7 @@ This script combines practical activation-management workflows with a maintainab
 - While the script creates automatic backups, maintaining a manual system restore point is always good practice.
 
 ---
+[Unreleased]: https://github.com/omartazul/IDM-Activation-Script/compare/v3.1.1...HEAD
+[3.1.1]: https://github.com/omartazul/IDM-Activation-Script/releases/tag/v3.1.1
+[3.1.0]: https://github.com/omartazul/IDM-Activation-Script/releases/tag/v3.1.0
 [3.0.0]: https://github.com/omartazul/IDM-Activation-Script/releases/tag/v3.0.0

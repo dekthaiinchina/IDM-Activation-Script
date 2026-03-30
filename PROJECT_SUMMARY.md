@@ -17,6 +17,8 @@ IDM-Activation-Script/
 `-- PROJECT_SUMMARY.md
 ```
 
+**Version:** 3.1.1
+
 ## Components
 
 ### IAS.cmd
@@ -24,6 +26,7 @@ IDM-Activation-Script/
 - Primary interactive and command-line entry point
 - Environment validation and privilege checks
 - Registry backup and operation orchestration
+- Idempotent IDM hosts normalization and domain-block enforcement
 - User-facing status and error reporting
 
 ### IAS.ps1
@@ -57,7 +60,8 @@ Use one of the supported flags:
 
 - Preflight checks for required runtime components
 - Administrator enforcement before protected operations
-- Registry backup before modifications
+- Registry backup before modifications (stored in %TEMP% with safe fallback)
+- Managed hosts entries are normalized on each run to prevent duplicates
 - Error paths with user-readable guidance
 
 ## Contribution flow
