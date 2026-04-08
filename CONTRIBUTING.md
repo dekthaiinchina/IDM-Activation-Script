@@ -61,6 +61,9 @@ Provide:
 - Verify behavior on Windows 10 and 11 when possible.
 - Cover no-admin and missing-IDM scenarios.
 - Check unattended flags and interactive mode.
+- Validate `/act`, `/frz`, and `/res` with elevation.
+- Confirm backups are generated in `%TEMP%` (or fallback temp path).
+- Confirm managed IDM hosts entries are active and duplicate-safe after repeated runs.
 
 ## Coding standards
 
@@ -70,6 +73,7 @@ Provide:
 - Keep section blocks organized and readable.
 - Add comments only where behavior is non-obvious.
 - Preserve existing style and command conventions.
+- Keep hosts update logic idempotent (safe across repeated executions).
 
 ### PowerShell (.ps1)
 

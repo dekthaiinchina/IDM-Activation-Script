@@ -1,4 +1,4 @@
-@set iasver=3.0
+@set iasver=3.1.1
 @setlocal DisableDelayedExpansion
 @echo off
 
@@ -176,7 +176,10 @@ set _PSarg="""%~f0""" -el %_args%
 set _PSarg=%_PSarg:'=''%
 
 set "_appdata=%appdata%"
-set "_ttemp=%userprofile%\AppData\Local\Temp"
+set "_ttemp=%TEMP%"
+if not defined _ttemp set "_ttemp=%userprofile%\AppData\Local\Temp"
+if not exist "%_ttemp%" set "_ttemp=%SystemRoot%\Temp"
+if not exist "%_ttemp%" md "%_ttemp%" %nul%
 
 setlocal EnableDelayedExpansion
 
@@ -332,7 +335,7 @@ if %arch%==x64 set "IDMan=%ProgramFiles(x86)%\Internet Download Manager\IDMan.ex
 if %arch%==x86 set "IDMan=%ProgramFiles%\Internet Download Manager\IDMan.exe"
 )
 
-if not exist %SystemRoot%\Temp md %SystemRoot%\Temp
+if not exist "%_ttemp%" md "%_ttemp%" %nul%
 set "idmcheck=tasklist /fi "imagename eq idman.exe" | findstr /i "idman.exe" %nul1%"
 
 ::  Check CLSID registry access
@@ -536,6 +539,9 @@ call :regscan_lock_toggle
 :: Step 5: Final lock pass
 call :regscan_lock
 
+:: Final host normalization after IDM runtime actions
+call :block_idm_hosts
+
 echo:
 echo %line%
 echo:
@@ -621,8 +627,11 @@ echo:
 
 set "hosts=%SystemRoot%\System32\drivers\etc\hosts"
 
-:: Remove any previously commented-out entries first, then re-add cleanly
-%psc% "(Get-Content '%hosts%') -replace '^#0\.0\.0\.0 (www\.internetdownloadmanager\.com|secure\.internetdownloadmanager\.com).*','' | Where-Object {$_ -ne ''} | Set-Content '%hosts%'" %nul%
+:: Ensure the hosts file is writable
+attrib -R "%hosts%" %nul1%
+
+:: Normalize IDM domain entries and force exactly one active line per managed domain
+%psc% "$h='%hosts%'; if (Test-Path -LiteralPath $h) { $domains=@('tonec.com','www.tonec.com','internetdownloadmanager.com','www.internetdownloadmanager.com','secure.internetdownloadmanager.com','idmmzs.com','www.idmmzs.com','idmzs.com','www.idmzs.com'); $content=@(Get-Content -LiteralPath $h -ErrorAction SilentlyContinue); $new=@(); foreach($ln in $content){ $skip=$false; foreach($d in $domains){ if($ln -match ('^\s*#?\s*0\.0\.0\.0\s+' + [regex]::Escape($d) + '(\s+.*)?$')){ $skip=$true; break } }; if(-not $skip){ $new += $ln } }; foreach($d in $domains){ $new += ('0.0.0.0 ' + $d) }; $new=@($new | ForEach-Object { $_.Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique); Set-Content -LiteralPath $h -Value $new -Encoding ASCII -ErrorAction Stop }" %nul%
 
 for %%D in (
 "tonec.com"
@@ -635,10 +644,7 @@ for %%D in (
 "idmzs.com"
 "www.idmzs.com"
 ) do (
-findstr /i /x "0.0.0.0 %%~D" "%hosts%" %nul1% || (
-echo 0.0.0.0 %%~D>>"%hosts%"
 echo Blocked - %%~D
-)
 )
 
 %psc% "Clear-DnsClientCache" %nul%
@@ -650,8 +656,9 @@ echo:
 echo Triggering download to initialize IDM CLSID registry keys...
 echo:
 
-set "file=%SystemRoot%\Temp\ias_temp.png"
+set "file=%_ttemp%\ias_temp.png"
 set _fileexist=
+if not exist "%_ttemp%" md "%_ttemp%" %nul%
 if exist "%file%" del /f /q "%file%"
 
 :: Get baseline CLSID key count before IDM runs
@@ -700,7 +707,7 @@ exit /b
 
 set /a attempt=0
 if exist "%file%" del /f /q "%file%"
-start "" /B "%IDMan%" /n /d "%link%" /p "%SystemRoot%\Temp" /f ias_temp.png
+start "" /B "%IDMan%" /n /d "%link%" /p "%_ttemp%" /f ias_temp.png
 
 :check_file
 
@@ -728,10 +735,12 @@ set _time=
 for /f %%a in ('%psc% "(Get-Date).ToString('yyyyMMdd-HHmmssfff')"') do set _time=%%a
 
 echo:
-echo Creating backup of CLSID registry keys in %SystemRoot%\Temp
+echo Creating backup of CLSID registry keys in %_ttemp%
 
-reg export %CLSID% "%SystemRoot%\Temp\_Backup_HKCU_CLSID_%_time%.reg"
-if not %HKCUsync%==1 reg export %CLSID2% "%SystemRoot%\Temp\_Backup_HKU-%_sid%_CLSID_%_time%.reg"
+if not exist "%_ttemp%" md "%_ttemp%" %nul%
+
+reg export %CLSID% "%_ttemp%\_Backup_HKCU_CLSID_%_time%.reg"
+if not %HKCUsync%==1 reg export %CLSID2% "%_ttemp%\_Backup_HKU-%_sid%_CLSID_%_time%.reg"
 exit /b
 
 :regscan_delete
@@ -776,6 +785,13 @@ exit /b
 
 :regscan:
 $finalValues = @()
+
+$AssemblyBuilder = [AppDomain]::CurrentDomain.DefineDynamicAssembly(4, 1)
+$ModuleBuilder = $AssemblyBuilder.DefineDynamicModule(2, $False)
+$TypeBuilder = $ModuleBuilder.DefineType(0)
+$TypeBuilder.DefinePInvokeMethod('RtlAdjustPrivilege', 'ntdll.dll', 'Public, Static', 1, [int], @([int], [bool], [bool], [bool].MakeByRefType()), 1, 3) | Out-Null
+$PrivilegeClass = $TypeBuilder.CreateType()
+9,17,18 | ForEach-Object { $PrivilegeClass::RtlAdjustPrivilege($_, $true, $false, [ref]$false) | Out-Null }
 
 $arch = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment').PROCESSOR_ARCHITECTURE
 if ($arch -eq "x86") {
@@ -870,13 +886,7 @@ if (($finalValues.Count -gt 20) -and ($toggle -ne $null)) {
 
 function Take-Permissions {
     param($rootKey, $regKey)
-    $AssemblyBuilder = [AppDomain]::CurrentDomain.DefineDynamicAssembly(4, 1)
-    $ModuleBuilder = $AssemblyBuilder.DefineDynamicModule(2, $False)
-    $TypeBuilder = $ModuleBuilder.DefineType(0)
-
-    $TypeBuilder.DefinePInvokeMethod('RtlAdjustPrivilege', 'ntdll.dll', 'Public, Static', 1, [int], @([int], [bool], [bool], [bool].MakeByRefType()), 1, 3) | Out-Null
-    9,17,18 | ForEach-Object { $TypeBuilder.CreateType()::RtlAdjustPrivilege($_, $true, $false, [ref]$false) | Out-Null }
-
+    
     $SID = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')
     $IDN = ($SID.Translate([System.Security.Principal.NTAccount])).Value
     $Admin = New-Object System.Security.Principal.NTAccount($IDN)
@@ -884,26 +894,31 @@ function Take-Permissions {
     $everyone = New-Object System.Security.Principal.SecurityIdentifier('S-1-1-0')
     $none = New-Object System.Security.Principal.SecurityIdentifier('S-1-0-0')
 
-    $key = [Microsoft.Win32.Registry]::$rootKey.OpenSubKey($regkey, 'ReadWriteSubTree', 'TakeOwnership')
+    try {
+        $key = [Microsoft.Win32.Registry]::$rootKey.OpenSubKey($regkey, 'ReadWriteSubTree', 'TakeOwnership')
+        if ($null -eq $key) { return }
 
-    $acl = New-Object System.Security.AccessControl.RegistrySecurity
-    $acl.SetOwner($Admin)
-    $key.SetAccessControl($acl)
-
-    $key = $key.OpenSubKey('', 'ReadWriteSubTree', 'ChangePermissions')
-    $rule = New-Object System.Security.AccessControl.RegistryAccessRule($everyone, 'FullControl', 'ContainerInherit', 'None', 'Allow')
-    $acl.ResetAccessRule($rule)
-    $key.SetAccessControl($acl)
-
-    if ($lockKey -ne $null) {
         $acl = New-Object System.Security.AccessControl.RegistrySecurity
-        $acl.SetOwner($none)
+        $acl.SetOwner($Admin)
         $key.SetAccessControl($acl)
 
         $key = $key.OpenSubKey('', 'ReadWriteSubTree', 'ChangePermissions')
-        $rule = New-Object System.Security.AccessControl.RegistryAccessRule($everyone, 'FullControl', 'Deny')
+        $rule = New-Object System.Security.AccessControl.RegistryAccessRule($everyone, 'FullControl', 'ContainerInherit', 'None', 'Allow')
         $acl.ResetAccessRule($rule)
         $key.SetAccessControl($acl)
+
+        if ($lockKey -ne $null) {
+            $acl = New-Object System.Security.AccessControl.RegistrySecurity
+            $acl.SetOwner($none)
+            $key.SetAccessControl($acl)
+
+            $key = $key.OpenSubKey('', 'ReadWriteSubTree', 'ChangePermissions')
+            $rule = New-Object System.Security.AccessControl.RegistryAccessRule($everyone, 'FullControl', 'Deny')
+            $acl.ResetAccessRule($rule)
+            $key.SetAccessControl($acl)
+        }
+    } catch {
+        # Ignore errors if key vanishes or is strongly protected
     }
 }
 
